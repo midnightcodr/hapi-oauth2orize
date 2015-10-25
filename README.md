@@ -52,7 +52,7 @@ Authorization Code Exchange Flow
 	    });
 	  }));
 
-	  oauth.exchange(oauth.exchanges.code(function (client, code, redirectURI, done) {
+	  oauth.exchange(oauth.exchanges.code({ userProperty: 'app' }, function (client, code, redirectURI, done) {
 	    server.helpers.find('code', code, function (code) {
 	      if (!code || client.id !== code.client || redirectURI !== code.redirectURI) {
 	        return done(null, false);
@@ -138,7 +138,16 @@ OAuth Endpoints
     };
 
     function token(request, reply) {
-      oauth.authorize(function (clientID, redirect, done) {
-        done(null, clientID, redirect);
-      });
+		var clientID=request.payload.client_id;
+		server.helpers.find('client', clientID, function(docs) {
+			var application=docs[0]||null;
+			if (application) {
+				request.app=application;	// see line above: oauth.exchange(oauth.exchanges.code({ userProperty: 'app' } ... 
+				oauth.token(request, reply, function (clientID, redirect, done) {
+					done(null, clientID, redirect);
+				});
+			} else {
+				reply(Boom.badRequest("There is no app with the client_id you supplied."));
+			}
+		});
     };
